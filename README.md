@@ -1,193 +1,191 @@
-# UTXO on Substrate
+# Substrate Node Template
 
-A UTXO chain implementation on Substrate, with two self-guided workshops.Original [UXTO inspiration](https://github.com/0x7CFE/substrate-node-template/tree/utxo) by [Dmitriy Kashitsyn](https://github.com/0x7CFE).
+A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacking :rocket:
 
-Substrate Version: `2.0.0-alpha.5`. For educational purposes only.
+## Getting Started
 
-## Table of Contents
-- [Installation](#Installation): Setting up Rust & Substrate dependencies
+This project contains some configuration files to help get started :hammer_and_wrench:
 
-- [UI Demo](#UI-Demo): Demoing this UTXO implementation in a simple UI
+### Rust Setup
 
-- [Beginner Workshop](#Beginner-Workshop): A self guided, 1 hour workshop that familiarizes you with Substrate basics
+Follow the [Rust setup instructions](./doc/rust-setup.md) before using the included Makefile to
+build the Node Template.
 
-- [Advanced Workshop](#Advanced-Workshop): A self guided, 2 hour video tutorial, that teaches you how to build this UTXO blockchain from scratch
+### Makefile
 
-- [Helpful Resources](#Helpful-Resources): Documentation and references if you get stuck in the workshops
+This project uses a [Makefile](Makefile) to document helpful commands and make it easier to execute
+them. Get started by running these [`make`](https://www.gnu.org/software/make/manual/make.html)
+targets:
 
+1. `make init` - Run the [init script](scripts/init.sh) to configure the Rust toolchain for
+   [WebAssembly compilation](https://substrate.dev/docs/en/knowledgebase/getting-started/#webassembly-compilation).
+1. `make run` - Build and launch this project in development mode.
 
-## Installation
+The init script and Makefile both specify the version of the
+[Rust nightly compiler](https://substrate.dev/docs/en/knowledgebase/getting-started/#rust-nightly-toolchain)
+that this project depends on.
 
-### 1. Install or update Rust
-```zsh
-curl https://sh.rustup.rs -sSf | sh
+### Build
 
-# On Windows, download and run rustup-init.exe
-# from https://rustup.rs instead
+The `make run` command will perform an initial build. Use the following command to build the node
+without launching it:
 
-rustup update nightly
-rustup target add wasm32-unknown-unknown --toolchain nightly
-rustup update stable
-cargo install --git https://github.com/alexcrichton/wasm-gc
+```sh
+make build
 ```
 
-### 2. Clone this workshop
+### Embedded Docs
 
-Clone your copy of the workshop codebase
+Once the project has been built, the following command can be used to explore all parameters and
+subcommands:
 
-```zsh
-git clone https://github.com/substrate-developer-hub/utxo-workshop.git
+```sh
+./target/release/node-template -h
 ```
 
-## UI Demo
+## Run
 
-In this UI demo, you will interact with the UTXO blockchain via the [Polkadot UI](https://substrate.dev/docs/en/development/front-end/polkadot-js).
+The `make run` command will launch a temporary node and its state will be discarded after you
+terminate the process. After the project has been built, there are other ways to launch the node.
 
-The following demo takes you through a scenario where:
-- Alice already owns a UTXO of value 100 upon genesis
-- Alice sends Bob a UTXO with value 50, tipping the remainder to validators
+### Single-Node Development Chain
 
-1. Compile and build a release in dev mode
-```
-# Initialize your Wasm Build environment:
-./scripts/init.sh
+This command will start the single-node development chain with persistent state:
 
-# Build Wasm and native code:
-cargo build --release
+```bash
+./target/release/node-template --dev
 ```
 
-2. Start your node & start producing blocks:
-```zsh
-./target/release/utxo-workshop --dev
+Purge the development chain's state:
 
-# If you already modified state, run this to purge the chain
-./target/release/utxo-workshop purge-chain --dev
+```bash
+./target/release/node-template purge-chain --dev
 ```
 
-3. In the console, notice the helper printouts. In particular, notice the default account `Alice` was already has `100 UTXO` upon the genesis block.
+Start the development chain with detailed logging:
 
-4. Open [Polkadot JS](https://polkadot.js.org/apps/#/settings), making sure the client is connected to your local node by going to Settings > General, and selecting `Local Node` in the `remote node` dropdown.
-
-5. **Declare the custom datatypes in PolkadotJS**, since the JS client cannot authomatically infer this from the UTXO module. Go to Settings > Developer tab and paste in the following JSON:
-
-```json
-{
-  "Address": "AccountId",
-  "LookupSource": "AccountId",
-  "Value": "u128",
-  "TransactionInput": {
-    "outpoint": "Hash",
-    "sigscript": "H512"
-  },
-  "TransactionOutput": {
-    "value": "Value",
-    "pubkey": "Hash"
-  },
-  "Transaction": {
-    "inputs": "Vec<TransactionInput>",
-    "outputs": "Vec<TransactionOutput>"
-  }
-}
+```bash
+RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/node-template -lruntime=debug --dev
 ```
 
-6. **Confirm that Alice already has 100 UTXO at genesis**. In `Chain State` > `Storage`, select `utxo`. Input the hash `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`. Click the `+` notation to query blockchain state.
+### Multi-Node Local Testnet
 
-    Notice that:
-    - This UTXO has a value of `100`
-    - This UTXO belongs to Alice's pubkey. You use the [subkey](https://substrate.dev/docs/en/next/development/tools/subkey#well-known-keys) tool to confirm that the pubkey indeed belongs to Alice
+If you want to see the multi-node consensus algorithm in action, refer to
+[our Start a Private Network tutorial](https://substrate.dev/docs/en/tutorials/start-a-private-network/).
 
-7. **Spend Alice's UTXO, giving 50 to Bob.** In the `Extrinsics` tab, invoke the `spend` function from the `utxo` pallet, using Alice as the transaction sender. Use the following input parameters:
+## Template Structure
 
-    - outpoint: `0x76584168d10a20084082ed80ec71e2a783abbb8dd6eb9d4893b089228498e9ff`
-    - sigscript: `0x6ceab99702c60b111c12c2867679c5555c00dcd4d6ab40efa01e3a65083bfb6c6f5c1ed3356d7141ec61894153b8ba7fb413bf1e990ed99ff6dee5da1b24fd83`
-    - value: `50`
-    - pubkey: `0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48`
+A Substrate project such as this consists of a number of components that are spread across a few
+directories.
 
-    Send this as an `unsigned` transaction. With UTXO blockchains, the proof is already in the `sigscript` input.
+### Node
 
-8. **Verify that your transaction succeeded**. In `Chain State`, look up the newly created UTXO hash: `0xdbc75ab8ee9b83dcbcea4695f9c42754d94e92c3c397d63b1bc627c2a2ef94e6` to verify that a new UTXO of 50, belonging to Bob, now exists! Also you can verify that Alice's original UTXO has been spent and no longer exists in UtxoStore.
+A blockchain node is an application that allows users to participate in a blockchain network.
+Substrate-based blockchain nodes expose a number of capabilities:
 
-*Coming soon: A video walkthrough of the above demo.*
+-   Networking: Substrate nodes use the [`libp2p`](https://libp2p.io/) networking stack to allow the
+    nodes in the network to communicate with one another.
+-   Consensus: Blockchains must have a way to come to
+    [consensus](https://substrate.dev/docs/en/knowledgebase/advanced/consensus) on the state of the
+    network. Substrate makes it possible to supply custom consensus engines and also ships with
+    several consensus mechanisms that have been built on top of
+    [Web3 Foundation research](https://research.web3.foundation/en/latest/polkadot/NPoS/index.html).
+-   RPC Server: A remote procedure call (RPC) server is used to interact with Substrate nodes.
 
-## Beginner Workshop
-**Estimated time**: 2 hours
+There are several files in the `node` directory - take special note of the following:
 
-In this workshop, you will:
-- Get familiar with basic Rust and Substrate functionality
-- Prevent malicious users from sending bad UTXO transactions
+-   [`chain_spec.rs`](./node/src/chain_spec.rs): A
+    [chain specification](https://substrate.dev/docs/en/knowledgebase/integrate/chain-spec) is a
+    source code file that defines a Substrate chain's initial (genesis) state. Chain specifications
+    are useful for development and testing, and critical when architecting the launch of a
+    production chain. Take note of the `development_config` and `testnet_genesis` functions, which
+    are used to define the genesis state for the local development chain configuration. These
+    functions identify some
+    [well-known accounts](https://substrate.dev/docs/en/knowledgebase/integrate/subkey#well-known-keys)
+    and use them to configure the blockchain's initial state.
+-   [`service.rs`](./node/src/service.rs): This file defines the node implementation. Take note of
+    the libraries that this file imports and the names of the functions it invokes. In particular,
+    there are references to consensus-related topics, such as the
+    [longest chain rule](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#longest-chain-rule),
+    the [Aura](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#aura) block authoring
+    mechanism and the
+    [GRANDPA](https://substrate.dev/docs/en/knowledgebase/advanced/consensus#grandpa) finality
+    gadget.
 
-Your challenge is to fix the code such that:
-1. The Rust compiler compiles without errors
-2. All tests in `utxo.rs` pass, ensuring secure transactions
+After the node has been [built](#build), refer to the embedded documentation to learn more about the
+capabilities and configuration parameters that it exposes:
 
-### Directions
-1. Checkout the `workshop` branch. The `Master` branch has the solutions, so don't peek!
-
-```zsh
-git fetch origin workshop:workshop
-git checkout workshop
+```shell
+./target/release/node-template --help
 ```
 
-2. Cd into the base directory. Try running the test with: `cargo test -p utxo-runtime`.
+### Runtime
 
-```zsh
-compiling utxo-runtime v2.0.0 (/Users/nicole/Desktop/utxo-workshop/runtime)
-error[E0433]: failed to resolve: use of undeclared type or module `H512`
-   --> /Users/nicole/Desktop/utxo-workshop/runtime/src/utxo.rs:236:31
-    |
-236 |             input.sigscript = H512::zero();
-    |                               ^^^^ use of undeclared type or module `H512`
+In Substrate, the terms
+"[runtime](https://substrate.dev/docs/en/knowledgebase/getting-started/glossary#runtime)" and
+"[state transition function](https://substrate.dev/docs/en/knowledgebase/getting-started/glossary#stf-state-transition-function)"
+are analogous - they refer to the core logic of the blockchain that is responsible for validating
+blocks and executing the state changes they define. The Substrate project in this repository uses
+the [FRAME](https://substrate.dev/docs/en/knowledgebase/runtime/frame) framework to construct a
+blockchain runtime. FRAME allows runtime developers to declare domain-specific logic in modules
+called "pallets". At the heart of FRAME is a helpful
+[macro language](https://substrate.dev/docs/en/knowledgebase/runtime/macros) that makes it easy to
+create pallets and flexibly compose them to create blockchains that can address
+[a variety of needs](https://www.substrate.io/substrate-users/).
 
-...
+Review the [FRAME runtime implementation](./runtime/src/lib.rs) included in this template and note
+the following:
+
+-   This file configures several pallets to include in the runtime. Each pallet configuration is
+    defined by a code block that begins with `impl $PALLET_NAME::Trait for Runtime`.
+-   The pallets are composed into a single runtime by way of the
+    [`construct_runtime!`](https://crates.parity.io/frame_support/macro.construct_runtime.html)
+    macro, which is part of the core
+    [FRAME Support](https://substrate.dev/docs/en/knowledgebase/runtime/frame#support-library)
+    library.
+
+### Pallets
+
+The runtime in this project is constructed using many FRAME pallets that ship with the
+[core Substrate repository](https://github.com/paritytech/substrate/tree/master/frame) and a
+template pallet that is [defined in the `pallets`](./pallets/template/src/lib.rs) directory.
+
+A FRAME pallet is compromised of a number of blockchain primitives:
+
+-   Storage: FRAME defines a rich set of powerful
+    [storage abstractions](https://substrate.dev/docs/en/knowledgebase/runtime/storage) that makes
+    it easy to use Substrate's efficient key-value database to manage the evolving state of a
+    blockchain.
+-   Dispatchables: FRAME pallets define special types of functions that can be invoked (dispatched)
+    from outside of the runtime in order to update its state.
+-   Events: Substrate uses [events](https://substrate.dev/docs/en/knowledgebase/runtime/events) to
+    notify users of important changes in the runtime.
+-   Errors: When a dispatchable fails, it returns an error.
+-   Trait: The `Trait` configuration interface is used to define the types and parameters upon which
+    a FRAME pallet depends.
+
+### Run in Docker
+
+First, install [Docker](https://docs.docker.com/get-docker/) and
+[Docker Compose](https://docs.docker.com/compose/install/).
+
+Then run the following command to start a single node development chain.
+
+```bash
+./scripts/docker_run.sh
 ```
 
-3. Your first task: fix all the compiler errors! Hint: Look for the `TODO` comments in `utxo.rs` to see where to fix errors.
+This command will firstly compile your code, and then start a local development network. You can
+also replace the default command (`cargo build --release && ./target/release/node-template --dev --ws-external`)
+by appending your own. A few useful ones are as follow.
 
-4. Once your code compiles, it's now time to fix the `8` failing tests!
+```bash
+# Run Substrate node without re-compiling
+./scripts/docker_run.sh ./target/release/node-template --dev --ws-external
 
-```zsh
-failures:
-    utxo::tests::attack_by_double_counting_input
-    utxo::tests::attack_by_double_generating_output
-    utxo::tests::attack_by_over_spending
-    utxo::tests::attack_by_overflowing_value
-    utxo::tests::attack_by_permanently_sinking_outputs
-    utxo::tests::attack_with_empty_transactions
-    utxo::tests::attack_with_invalid_signature
-    utxo::tests::test_simple_transaction
+# Purge the local dev chain
+./scripts/docker_run.sh ./target/release/node-template purge-chain --dev
+
+# Check whether the code is compilable
+./scripts/docker_run.sh cargo check
 ```
-
-5. In `utxo.rs`, edit the logic in `validate_transaction()` function to make all tests pass.
-
-```zsh
-running 8 tests
-test utxo::tests::attack_by_overflowing_value ... ok
-test utxo::tests::attack_by_double_counting_input ... ok
-test utxo::tests::attack_by_double_generating_output ... ok
-test utxo::tests::attack_by_over_spending ... ok
-test utxo::tests::attack_with_empty_transactions ... ok
-test utxo::tests::attack_with_invalid_signature ... ok
-test utxo::tests::attack_by_permanently_sinking_outputs ... ok
-test utxo::tests::test_simple_transaction ... ok
-```
-
-## Advanced Workshop
-**VIDEO TUTORIALS COMING SOON**
-
-**Estimated time**: 1 hour
-
-In this workshop, you will implement this UTXO project from scratch using Substrate.
-
-You will learn:
-- How to implement the UTXO model on Substrate
-- How to secure UTXO transactions against attacks
-- How to seed genesis block with UTXOs
-- How to reward block validators in this environment
-- How to customize transaction pool logic on Substrate
-- Good coding patterns for working with Substrate & Rust
-
-
-## Helpful Resources
-- [Substrate documentation](http://crates.parity.io)
-- [bytes to Vec<u8> converter](https://cryptii.com/pipes/integer-encoder)
-- [Polkadot UI](https://polkadot.js.org/)
